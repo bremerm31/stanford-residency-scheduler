@@ -2,6 +2,7 @@ import argparse
 import os.path
 
 from src.inputs import Config
+from src.model import schedulingModel
 
 if __name__=="__main__":
     parser = argparse.ArgumentParser(description='Compute Optimal residency schedule')
@@ -14,4 +15,6 @@ if __name__=="__main__":
     model_config = Config(args.CONFIG_FILE)
     print("Input Configuration summary")
     model_config.print_summary()
-    
+
+    m = schedulingModel(model_config.residents,
+                        model_config.services)
