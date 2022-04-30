@@ -108,6 +108,8 @@ class Config:
             for r in reader:
                 self.residents.append(
                     Resident(r[0], 'AP2', header[1:], r[1:]))
+
+        self.output_filename = config_inputs['output']['file']
         
     def print_summary(self):
         print("{:d} services".format(len(self.services)))
@@ -122,3 +124,4 @@ class Config:
             if r.year == "AP2":
                 count_AP2 += 1
         print("{:d} AP2 residents".format(count_AP2))
+        print("Writing results to {:}".format(self.output_filename))

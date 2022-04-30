@@ -1,3 +1,4 @@
+import csv
 import gurobipy as gb
 from gurobipy import GRB
 
@@ -123,3 +124,24 @@ class schedulingModel:
             self.model.optimize()
         except gb.GurobiError as e:
             print('Error code '+str(e.errno) + ": "+str(e))
+
+    def write_csv(self, filename, residents, services):
+        attr_schedule = self.model.getAttr('X', self.schedule)
+        with open(filename, 'w') as csvfile:
+            writer = csv.writer(csvfile)
+
+            writer.writerow(['Name'] +
+                            ['Week '+str(w) for w in range(schedulingModel.n_weeks)])
+
+            for r_idx,r in enumerate(residents):
+                line = [r.name]
+                for t in range(schedulingModel.n_weeks):
+                    service_idxs = []
+                    for s_idx in range(len(services)):
+                        if attr_schedule[(r_idx, s_idx,t)] > 0.5:
+                            service_idxs.append(s_idx)
+                    assert len(service_idxs)==1
+
+                    line.append(services[service_idxs[0]].name)
+
+                writer.writerow(line)

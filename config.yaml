@@ -1,6 +1,13 @@
 #Stanford residency yaml input file
 
+gurobi:
+  Threads: 2
+
 scheduling:
   service_requirements: data/service.csv
   ap1_residents: data/ap1.csv
   ap2_residents: data/ap2.csv
+
+output:
+  file: data/schedule.csv
+

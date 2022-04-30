@@ -16,5 +16,11 @@ if __name__=="__main__":
     print("Input Configuration summary")
     model_config.print_summary()
 
-    m = schedulingModel(model_config.residents,
-                        model_config.services)
+    m = schedulingModel(model_config.gurobi)
+
+    m.build_model(model_config.residents,
+                  model_config.services)
+
+    m.write_csv(model_config.output_filename,
+                model_config.residents,
+                model_config.services)
