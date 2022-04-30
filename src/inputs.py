@@ -6,6 +6,34 @@ import os.path
 class ConfigException(Exception):
     """Raise for exceptions encountered during input file parsing"""
 
+class GurobiConfig:
+    def __init__(self, gurobi_node):
+        if not gurobi_node:
+            gurobi_node = {}
+
+        self.data = {}
+        if 'BestObjStop' in gurobi_node:
+            self.addVar(gurobi_node, 'BestObjStop', float)
+        else:
+            self.data['BestObjStop'] = 0.05
+        if 'MIPFocus' in gurobi_node:
+            self.addVar(gurobi_node, 'MIPFocus')
+        else:
+            self.data['MIPFocus'] = 1
+        if 'Threads' in gurobi_node:
+            self.addVar(gurobi_node, 'Threads')
+        else:
+            self.data['Threads'] = 2
+        if 'Presolve' in gurobi_node:
+            self.addVar(gurobi_node, 'Presolve')
+        else:
+            self.data['Presolve'] = 2
+
+    def addVar(self, node, key, dtype=int):
+        self.data[key] = dtype(node[key])
+
+    def __getitem__(self, item):
+        return self.data[item]
 
 class Resident:
     allowable_years={'AP1','AP2'}
@@ -32,6 +60,10 @@ class Config:
     def __init__(self, config_file):
         with open(config_file, 'r') as f:
             config_inputs = yaml.safe_load(f)
+
+        self.gurobi = GurobiConfig(
+            config_inputs['gurobi'] if 'gurobi' in config_inputs
+            else dict())
 
         sched = config_inputs['scheduling']
         service_csv = sched['service_requirements']

@@ -1,14 +1,22 @@
 import gurobipy as gb
 from gurobipy import GRB
 
-from .inputs import Resident, ClinicalService
-
 class schedulingModel:
-    def __init__(self, residents, services):
+    n_weeks = 52
+
+    def __init__(self, gurobi_params):
+        print(gurobi_params)
+        self.BestObjStop = gurobi_params['BestObjStop']
+        self.MIPFocus    = gurobi_params['MIPFocus']
+        self.Threads     = gurobi_params['Threads']
+        self.Presolve    = gurobi_params['Presolve']
+
+
+    def build_model(self, residents, services):
         hardness_interval = 6
         hardness_weight_ratio = 0.5
-        
-        n_weeks = 52
+
+        n_weeks = schedulingModel.n_weeks
         n_residents = len(residents)
         n_services = len(services)
 
@@ -91,18 +99,27 @@ class schedulingModel:
             self.model.addConstr(max_hardness == gb.max_(resident_hardness), name="max_hardness definition")
 
             self.model.setObjective(max_hardness)
-            self.model.setParam('BestObjStop', 0.05)
-            self.model.setParam('MIPFocus', 1)
-            self.model.setParam('Threads', 2)
-            self.model.setParam('Presolve', 2)
-            self.model.optimize()
+            self.model.setParam('BestObjStop', self.BestObjStop)
+            self.model.setParam('MIPFocus', self.MIPFocus)
+            self.model.setParam('Threads', self.Threads)
+            self.model.setParam('Presolve', self.Presolve)
+            self.optimize()
 
         except gb.GurobiError as e:
             print('Error code '+str(e.errno) + ": "+str(e))
 
     def performIISAnalysis(self):
-        self.model.computeIIS()
+        try:
+            self.model.computeIIS()
 
-        for c in self.model.getConstrs():
-            if c.IISConstr:
-                print('%s' % c.ConstrName)
+            for c in self.model.getConstrs():
+                if c.IISConstr:
+                    print('%s' % c.ConstrName)
+        except gb.GurobiError as e:
+            print('Error code '+str(e.errno) + ": "+str(e))
+
+    def optimize(self):
+        try:
+            self.model.optimize()
+        except gb.GurobiError as e:
+            print('Error code '+str(e.errno) + ": "+str(e))
