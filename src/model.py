@@ -3,6 +3,7 @@ import gurobipy as gb
 from gurobipy import GRB
 
 class schedulingModel:
+    hardness_interval = 6
     n_weeks = 52
 
     def __init__(self, gurobi_params):
@@ -14,9 +15,7 @@ class schedulingModel:
 
 
     def build_model(self, residents, services):
-        hardness_interval = 6
-        hardness_weight_ratio = 0.5
-
+        hardness_interval = schedulingModel.hardness_interval
         n_weeks = schedulingModel.n_weeks
         n_residents = len(residents)
         n_services = len(services)
@@ -52,6 +51,35 @@ class schedulingModel:
                                        for t in range(n_weeks) if s.ub),
                                       name="Service coverage upper bounds")
 
+            self.model.setParam('BestObjStop', self.BestObjStop)
+            self.model.setParam('MIPFocus', self.MIPFocus)
+            self.model.setParam('Threads', self.Threads)
+            self.model.setParam('Presolve', self.Presolve)
+
+        except gb.GurobiError as e:
+            print('Error code '+str(e.errno) + ": "+str(e))
+
+    def performIISAnalysis(self):
+        try:
+            self.model.computeIIS()
+
+            for c in self.model.getConstrs():
+                if c.IISConstr:
+                    print('%s' % c.ConstrName)
+        except gb.GurobiError as e:
+            print('Error code '+str(e.errno) + ": "+str(e))
+
+    def optimize(self, residents, services):
+        hardness_interval = schedulingModel.hardness_interval
+        n_weeks = schedulingModel.n_weeks
+        n_residents = len(residents)
+        n_services = len(services)
+        
+        try:
+            # Perform 2 phase optimization process
+            # (1) optimize the maximum number of hours worked over hardness inverval by any resident
+            # (2) add this limit as a constraint to the model
+            # (3) optimize the maximum number of hours worked over the year by any resident
             #Compute hardess over hardness_interval
             hrs_per_interval = self.model.addVars(n_residents, n_weeks-hardness_interval,
                                                   vtype=GRB.CONTINUOUS,
@@ -71,6 +99,22 @@ class schedulingModel:
             self.model.addConstrs((max_hrs_per_interval[r] == gb.max_([hrs_per_interval[r,t] for t in range(n_weeks-hardness_interval)])
                                    for r in range(n_residents)),
                                   name="defn max hardness")
+            
+            '''
+            max_hrs_per_int_overall = self.model.addVar(vtype=GRB.CONTINUOUS,
+                                                        name='max_hours_per_interval_overall')
+            self.model.addConstr(max_hrs_per_int_overall == gb.max_(max_hrs_per_interval), name="max_hrs_per_int definition")
+            self.model.setObjective(max_hrs_per_int_overall)
+            self.model.optimize()
+            '''
+            self.max_avg_hours_per_interval = 65 #self.model.objVal
+
+            #add the previous objective as the new bound
+            self.model.addConstrs((hrs_per_interval[r,t] <= self.max_avg_hours_per_interval
+                                   for r in range(n_residents)
+                                   for t in range(n_weeks-hardness_interval)),
+                                  name="Bound hours per interval")
+
 
             avg_hrs_per_year = self.model.addVars(n_residents,
                                                   vtype=GRB.CONTINUOUS,
@@ -81,47 +125,15 @@ class schedulingModel:
                                                for t in range(n_weeks)) == avg_hrs_per_year[r] * n_weeks
                                    for r in range(n_residents)),
                                   name="Avg hours definition")
+
+            overall_max_avg_hrs_per_year = self.model.addVar(vtype=GRB.CONTINUOUS,
+                                                     name='max_hours_per_year_overall')
+            self.model.addConstr(overall_max_avg_hrs_per_year == gb.max_(avg_hrs_per_year), name="overall_max_avg_hrs_per_year definition")
             
-            resident_hardness = self.model.addVars(n_residents,
-                                                   vtype=GRB.CONTINUOUS,
-                                                   name="Hardness")
-
-            if hardness_weight_ratio > 0:
-                self.model.addConstrs((max_hrs_per_interval[r] == resident_hardness[r]
-                                   for r in range(n_residents)),
-                                  name="Hardness definition")
-            else:
-                self.model.addConstrs((resident_hardness[r] == avg_hrs_per_year[r]
-                                   for r in range(n_residents)),
-                                  name="Hardness definition")
-
-            max_hardness = self.model.addVar(vtype=GRB.CONTINUOUS,
-                                             name="max_work")
-            self.model.addConstr(max_hardness == gb.max_(resident_hardness), name="max_hardness definition")
-
-            self.model.setObjective(max_hardness)
-            self.model.setParam('BestObjStop', self.BestObjStop)
-            self.model.setParam('MIPFocus', self.MIPFocus)
-            self.model.setParam('Threads', self.Threads)
-            self.model.setParam('Presolve', self.Presolve)
-            self.optimize()
-
-        except gb.GurobiError as e:
-            print('Error code '+str(e.errno) + ": "+str(e))
-
-    def performIISAnalysis(self):
-        try:
-            self.model.computeIIS()
-
-            for c in self.model.getConstrs():
-                if c.IISConstr:
-                    print('%s' % c.ConstrName)
-        except gb.GurobiError as e:
-            print('Error code '+str(e.errno) + ": "+str(e))
-
-    def optimize(self):
-        try:
+            self.model.setObjective(overall_max_avg_hrs_per_year)
             self.model.optimize()
+            self.max_avg_hours_per_year = self.model.objVal
+
         except gb.GurobiError as e:
             print('Error code '+str(e.errno) + ": "+str(e))
 

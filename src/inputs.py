@@ -6,35 +6,6 @@ import os.path
 class ConfigException(Exception):
     """Raise for exceptions encountered during input file parsing"""
 
-class GurobiConfig:
-    def __init__(self, gurobi_node):
-        if not gurobi_node:
-            gurobi_node = {}
-
-        self.data = {}
-        if 'BestObjStop' in gurobi_node:
-            self.addVar(gurobi_node, 'BestObjStop', float)
-        else:
-            self.data['BestObjStop'] = 0.05
-        if 'MIPFocus' in gurobi_node:
-            self.addVar(gurobi_node, 'MIPFocus')
-        else:
-            self.data['MIPFocus'] = 1
-        if 'Threads' in gurobi_node:
-            self.addVar(gurobi_node, 'Threads')
-        else:
-            self.data['Threads'] = 2
-        if 'Presolve' in gurobi_node:
-            self.addVar(gurobi_node, 'Presolve')
-        else:
-            self.data['Presolve'] = 2
-
-    def addVar(self, node, key, dtype=int):
-        self.data[key] = dtype(node[key])
-
-    def __getitem__(self, item):
-        return self.data[item]
-
 class Resident:
     allowable_years={'AP1','AP2'}
 
@@ -61,9 +32,13 @@ class Config:
         with open(config_file, 'r') as f:
             config_inputs = yaml.safe_load(f)
 
-        self.gurobi = GurobiConfig(
+        self.parse_gurobi_config(
             config_inputs['gurobi'] if 'gurobi' in config_inputs
             else dict())
+
+        self.rules= \
+            config_inputs['rules'] if 'rules' in config_inputs \
+            else []
 
         sched = config_inputs['scheduling']
         service_csv = sched['service_requirements']
@@ -110,18 +85,40 @@ class Config:
                     Resident(r[0], 'AP2', header[1:], r[1:]))
 
         self.output_filename = config_inputs['output']['file']
+
+    def parse_gurobi_config(self, gurobi_node):
+        self.gurobi = {}
+        if 'BestObjStop' in gurobi_node:
+            self.addVar(gurobi_node, 'BestObjStop', float)
+        else:
+            self.gurobi['BestObjStop'] = 0.05
+        if 'MIPFocus' in gurobi_node:
+            self.addVar(gurobi_node, 'MIPFocus')
+        else:
+            self.gurobi['MIPFocus'] = 1
+        if 'Threads' in gurobi_node:
+            self.addVar(gurobi_node, 'Threads')
+        else:
+            self.gurobi['Threads'] = 2
+        if 'Presolve' in gurobi_node:
+            self.addVar(gurobi_node, 'Presolve')
+        else:
+            self.gurobi['Presolve'] = 2
+
+    def addVar(self, node, key, dtype=int):
+        self.gurobi[key] = dtype(node[key])
         
     def print_summary(self):
         print("{:d} services".format(len(self.services)))
         print("{:d} residents".format(len(self.residents)))
         count_AP1 = 0
+        count_AP2 = 0
         for r in self.residents:
             if r.year == "AP1":
                 count_AP1 += 1
-        print("{:d} AP1 residents".format(count_AP1))
-        count_AP2 = 0
-        for r in self.residents:
             if r.year == "AP2":
                 count_AP2 += 1
+        print("{:d} AP1 residents".format(count_AP1))
         print("{:d} AP2 residents".format(count_AP2))
+        print("{:d} Rules found".format(len(self.rules)))
         print("Writing results to {:}".format(self.output_filename))
