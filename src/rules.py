@@ -1,4 +1,6 @@
-
+import gurobipy as gb
+from gurobipy import GRB
+from .model import schedulingModel
 
 class RuleException(Exception):
     """Raise for exceptions encountered when applying a rule"""
@@ -94,7 +96,38 @@ class upperBound(Rule):
             (scheduler.schedule.sum(r,s_idx,'*') <= self.count
              for r in range(len(residents))),
              name=self.name)
-    
+
+class singleBlock(Rule):
+    def __init__(self, service_name):
+        super().__init__(service_name+"singleBlock")
+        self.service_name = service_name
+    def addRuleToModel(self, scheduler, residents, services):
+        s_idx = super().getServiceIndex(self.service_name, services)
+
+        m  = scheduler.model
+        s  = scheduler.schedule
+
+        for r_idx in range(len(residents)):
+            r = residents[r_idx]
+            service_lb = r.service_lbs[self.service_name]
+            
+            if service_lb == 0:
+                continue
+            
+            start = m.addVars(
+                schedulingModel.n_weeks-service_lb,
+                vtype = GRB.BINARY,
+                name = r.name+'_'+self.service_name+'_start')
+
+
+            m.addConstr(start.sum('*') == 1, name="start_once_"+self.name+"_"+r.name)
+
+            m.addConstrs((gb.quicksum(s[r_idx,s_idx,tt] for tt in range(t,t+service_lb))
+                          >= service_lb * start[t] for t in range(schedulingModel.n_weeks-service_lb)),
+                         name=self.name)
+            
+
+            
 
 def RuleFactory(rule_type):
     assert len(rule_type.keys())==1
@@ -124,4 +157,6 @@ def RuleFactory(rule_type):
         assert "count"   in arg_dict
         return upperBound(arg_dict["service"],
                           arg_dict["count"])
-            
+    elif name == "single_block":
+        assert "service" in arg_dict
+        return singleBlock(arg_dict["service"])           

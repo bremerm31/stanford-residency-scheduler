@@ -11,3 +11,14 @@ scheduling:
 output:
   file: data/schedule.csv
 
+rules:
+  - upper_bound:
+      service: "Vacation"
+      count: 3
+  - single_block:
+      service: "NEURO"
+  - single_block:
+      service: "HEME"
+  - single_block:
+      service: "SP_PED_ST"
+
