@@ -17,8 +17,15 @@ rules:
       count: 3
   - single_block:
       service: "NEURO"
-  - single_block:
-      service: "HEME"
-  - single_block:
+  #- single_block:
+  #    service: "HEME"
+  #- single_block:
+  #    service: "SP_PED_ST"
+  - do_before:
+      service: "Gross bootcamp"
+      week: 7
+  - do_after:
       service: "SP_PED_ST"
+      week: 24
+      who: "AP1"
 

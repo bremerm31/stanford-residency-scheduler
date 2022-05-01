@@ -24,48 +24,64 @@ class Rule:
                                 " not found in list of services")
         
         return service_idx
+    def getResidentIndices(self, who, residents):
+        if who == "everyone":
+            return range(len(residents))
+        elif who == "AP1" or who == "AP2":
+            return [ pair[0] for pair in enumerate(residents) if pair[1].year == who ]
+        else:
+            resident_idx = -1
+            for i, r, in enumerate(residents):
+                if r.name == who:
+                    resident_idx = i
+                    break
 
-'''
+            if resident_idx == -1:
+                raise RuleException("Resident: "+self.who+
+                                    " not found in list of residents")
+
+            return [resident_idx]
+
+
 class doBefore(Rule):
-    def __init__(self,week_id,service_name):
-        super(Rule,self).__init__("do_before")
-        self.week = week
+    def __init__(self,week_id,service_name, who):
+        super().__init__("do_before")
+        self.week_id = week_id
         self.service_name = service_name
+        self.who          = who
 
-    def addRuleToModel(self, model, schedule, residents, services):
-        service_idx = -1
-        for i, s in enumerate(services):
-            if s.name == self.service_name:
-                service_idx = i
-                break
+    def addRuleToModel(self, scheduler, residents, services):
+        s_idx = super().getServiceIndex(self.service_name, services)
+        r_indices = super().getResidentIndices(self.who, residents)
 
-        model.addConstrs((gb.quicksum(schedule[r,service_idx,t]
-                                      for t in range(week, n_weeks))
-                          == 0) for r in range(len(residents)),
-                         self.name)
+        s = scheduler.schedule
+        m = scheduler.model
+        
+        m.addConstrs((gb.quicksum(s[r,s_idx,t]
+                                  for t in range(self.week_id, schedulingModel.n_weeks))
+                      == 0 for r in r_indices),
+                     self.name)
 
 class doAfter(Rule):
-    def __init__(self,week_id,service_name):
-        super(Rule,self).__init__("do_after")
-        self.week = week
+    def __init__(self,week_id,service_name,who):
+        super().__init__("do_after")
+        self.week_id      = week_id
         self.service_name = service_name
+        self.who          = who
 
-    def addRuleToModel(self, model, schedule, residents, services):
-        service_idx = -1
-        for i, s in enumerate(services):
-            if s.name == self.service_name:
-                service_idx = i
-                break
+    def addRuleToModel(self, scheduler, residents, services):
+        s_idx = super().getServiceIndex(self.service_name, services)
+        r_indices = super().getResidentIndices(self.who, residents)
 
-        if service_idx == -1:
-            raise RuleException("Service: "+self.service_name+
-                                " not found in list of services")
+        s = scheduler.schedule
+        m = scheduler.model
+        
+        m.addConstrs((gb.quicksum(s[r,s_idx,t]
+                                  for t in range(self.week_id))
+                      == 0 for r in r_indices),
+                     self.name)
 
-        model.addConstrs((gb.quicksum(schedule[r,service_idx,t]
-                                      for t in range(week))
-                          == 0) for r in range(len(residents)),
-                         name=self.name)
-
+'''
 class inBlocks(Rule):
     def __init__(self,name, block_size, service_name):
         super(Rule, self).__init__(name)
@@ -133,19 +149,22 @@ def RuleFactory(rule_type):
     assert len(rule_type.keys())==1
     name = next(iter(rule_type.keys()))
     arg_dict = rule_type[name]
+
+    if "who" not in arg_dict:
+        arg_dict["who"] = "everyone"
         
     if name == "do_before":
         assert "week" in arg_dict
         assert "service" in arg_dict
-        return doBefore(name,
-                        arg_dict["week"],
-                        arg_dict["service"])
+        return doBefore(arg_dict["week"],
+                        arg_dict["service"],
+                        arg_dict["who"])
     elif name == "do_after":
         assert "week" in arg_dict
         assert "service" in arg_dict
-        return doAfter(arg_dict["name"],
-                       arg_dict["week"],
-                       arg_dict["service"])
+        return doAfter(arg_dict["week"],
+                       arg_dict["service"],
+                       arg_dict["who"])
     elif name == "in_blocks":
         assert "block_size" in arg_dict
         assert "service" in arg_dict
