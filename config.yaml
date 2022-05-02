@@ -17,6 +17,13 @@ rules:
       count: 3
   - single_block:
       service: "NEURO"
+  - upper_bound:
+      service: "NEURO"
+  - single_block:
+      service: "AUTOPSY"
+      who: "AP1"
+  - upper_bound:
+      service: "AUTOPSY"
   #- single_block:
   #    service: "HEME"
   #- single_block:
@@ -28,4 +35,19 @@ rules:
       service: "SP_PED_ST"
       week: 24
       who: "AP1"
+  - in_blocks:
+      service: "VA"
+      block_size: 2
+  - upper_bound:
+      service: "VA"
+      count: 12
+  - in_blocks:
+      service: "DERM"
+      block_size: 2
+  - in_blocks:
+      service: "FORENSICS"
+      block_size: 2
+  - sequence:
+      first: "SP_FS"
+      second: "Breast"
 
