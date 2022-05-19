@@ -3,7 +3,8 @@ import os.path
 
 from src.inputs import Config
 from src.model import schedulingModel
-from src.rules import RuleFactory
+from src.rules import RuleFactory, addVacation, addConferenceWeek
+
 if __name__=="__main__":
     parser = argparse.ArgumentParser(description='Compute Optimal residency schedule')
     parser.add_argument('CONFIG_FILE', type=str,
@@ -20,6 +21,10 @@ if __name__=="__main__":
 
     rules = [ RuleFactory(rule_input)
               for rule_input in model_config.rules]
+
+    addVacation(rules, model_config.residents)
+    #hardcoding USCAP at week 38
+    addConferenceWeek(rules, model_config.residents, 38)
 
     m.build_model(model_config.residents,
                   model_config.services)

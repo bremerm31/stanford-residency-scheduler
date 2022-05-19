@@ -143,7 +143,7 @@ class schedulingModel:
             writer = csv.writer(csvfile)
 
             writer.writerow(['Name'] +
-                            ['Week '+str(w) for w in range(schedulingModel.n_weeks)])
+                            ['Week '+str(w+2) for w in range(schedulingModel.n_weeks)])
 
             for r_idx,r in enumerate(residents):
                 line = [r.name]

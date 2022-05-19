@@ -6,6 +6,8 @@ import os.path
 class ConfigException(Exception):
     """Raise for exceptions encountered during input file parsing"""
 
+n_services = 21
+
 class Resident:
     allowable_years={'AP1','AP2'}
 
@@ -14,18 +16,31 @@ class Resident:
         self.name = str(name)
         self.year = year
         self.service_lbs = {}
-        for service_name, req in zip(headers, data):
-            self.service_lbs[service_name] = int(req) if req else None
+        for service_name, req in zip(headers[:n_services], data[:n_services]):
+            req = req.split('-')[0]
+            if service_name == "Conference":
+                if req == "Yes" or req == "USCAP":
+                    self.service_lbs[service_name] = 1
+                else:
+                    self.service_lbs[service_name] = 0
+            else:
+                self.service_lbs[service_name] = int(req) if req else None
+
+        assert headers[n_services] == "Vacation weeks"
+        print(self.name, data[n_services])
+        self.vacation_weeks = [ int(w.strip()[5:]) - 2
+                                for w in data[n_services].split(",") ]
 
         if self.year not in Resident.allowable_years:
             raise ConfigException("Year "+self.year+" is an unknown type")
 
 class ClinicalService:
-    def __init__(self, name, lb, ub, hardness):
+    def __init__(self, name, lb, ub, hardness, ok_after_vacation):
         self.name     = str(name)
         self.lb = int(lb) if lb else None
         self.ub = int(ub) if ub else None
         self.hardness = float(hardness)
+        self.ok_after_vacation = bool(ok_after_vacation=='y')
 
 class Config:
     def __init__(self, config_file):
@@ -53,7 +68,7 @@ class Config:
             self.services = []
             for s in reader:
                 self.services.append(
-                    ClinicalService(s[0], s[1], s[2], s[3]))
+                    ClinicalService(s[0], s[1], s[2], s[3], s[4]))
 
         service_set = { s.name for s in self.services }
 
@@ -62,7 +77,7 @@ class Config:
             reader = csv.reader(f)
             header = next(reader)
 
-            for s in header[1:]:
+            for s in header[1:(n_services)]:
                 if s not in service_set:
                     raise ConfigException("Unknown service "+
                                           s+" not found in "+service_csv)
@@ -75,7 +90,7 @@ class Config:
             reader = csv.reader(f)
             header = next(reader)
 
-            for s in header[1:]:
+            for s in header[1:(n_services)]:
                 if s not in service_set:
                     raise ConfigException("Unknown service "+
                                           s+" not found in "+service_csv)

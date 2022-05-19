@@ -1,12 +1,16 @@
 #Stanford residency yaml input file
 
 gurobi:
-  Threads: 2
+  Threads: 4
 
 scheduling:
   service_requirements: data/service.csv
   ap1_residents: data/ap1.csv
   ap2_residents: data/ap2.csv
+
+definitions:
+  conference_week: 38
+  #easy_services:
 
 output:
   file: data/schedule.csv
@@ -15,13 +19,15 @@ rules:
   - upper_bound:
       service: "Vacation"
       count: 3
-  - single_block:
-      service: "NEURO"
+  - upper_bound:
+      service: "Conference"
+#  - single_block:
+#      service: "NEURO"
   - upper_bound:
       service: "NEURO"
-  - single_block:
-      service: "AUTOPSY"
-      who: "AP1"
+#  - single_block:
+#      service: "AUTOPSY"
+#      who: "AP1"
   - upper_bound:
       service: "AUTOPSY"
   #- single_block:

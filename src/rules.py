@@ -190,6 +190,26 @@ class sequence(Rule):
                       for t in range(schedulingModel.n_weeks-1)),
                       name=self.name)
         
+class specify(Rule):
+    def __init__(self, service, weeks, who):
+        super().__init__("specify")
+        self.service = service
+        if type(weeks) == int:
+            weeks = [weeks]
+        self.weeks = weeks
+        self.who = who
+    def addRuleToModel(self, scheduler, residents, services):
+        s_idx = super().getServiceIndex(self.service, services)
+        r_indices = super().getResidentIndices(self.who, residents)
+
+        m  = scheduler.model
+        s  = scheduler.schedule
+
+        for r_idx in r_indices:
+            m.addConstrs((s[r_idx,s_idx,w-2] == 1
+                          for r_idx in r_indices
+                          for w in self.weeks),
+                         name=self.name)
 
 def RuleFactory(rule_type):
     assert len(rule_type.keys())==1
@@ -233,3 +253,24 @@ def RuleFactory(rule_type):
         return sequence(arg_dict["first"],
                         arg_dict["second"],
                         arg_dict["who"])
+    elif name == "specify":
+        assert "service" in arg_dict
+        assert "week"    in arg_dict
+        assert "who"     in arg_dict
+        return specify(arg_dict["service"],
+                       arg_dict["week"],
+                       arg_dict["who"])
+
+def addVacation(rules_list, residents):
+    for r in residents:
+        week_input = [ w+2 for w in r.vacation_weeks ]
+        rules_list.append(specify("Vacation",
+                                  week_input,
+                                  r.name))
+
+def addConferenceWeek(rules_list, residents, conference_week):
+    for r in residents:
+        if r.service_lbs["Conference"] > 0:
+            rules_list.append(specify("Conference",
+                                      conference_week,
+                                      r.name))
